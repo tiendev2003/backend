@@ -10,6 +10,7 @@ const axios = require("axios");
 const { handleProductQuantity } = require("../lib/stock-controller/others");
 const { formatAmountForStripe } = require("../lib/stripe/stripe");
 const Product = require("../models/Product");
+const { removeCart } = require("./cartController");
 
 const addOrder = async (req, res) => {
   try {
@@ -66,6 +67,8 @@ const addOrder = async (req, res) => {
     });
 
     const order = await newOrder.save();
+    // remove all item in cart
+    await removeCart(req,res)
     res.status(201).json({
       order,
       message: "Order created successfully.",
