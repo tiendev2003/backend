@@ -40,6 +40,12 @@ const verifyEmailAddress = async (req, res) => {
 
 const registerCustomer = async (req, res) => {
   const token = req.params.token;
+  if (!token) {
+    return res.status(401).send({
+      status: false,
+      message: "Token is required",
+    });
+  }
   const { name, email, password } = jwt.decode(token);
   const isAdded = await Customer.findOne({ email: email });
 

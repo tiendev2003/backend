@@ -15,6 +15,7 @@ const attributeRoutes = require("../routes/attributeRoutes");
 const settingRoutes = require("../routes/settingRoutes");
 const homePageRoutes = require("../routes/homepageRoutes");
 const cartRoutes = require('../routes/cartRoutes');
+const reviewsRoutes = require('../routes/reviewRoutes');
 
 connectDB();
 const app = express();
@@ -22,9 +23,9 @@ const app = express();
 // We are using this for the express-rate-limit middleware
 // See: https://github.com/nfriedly/express-rate-limit
 // app.enable('trust proxy');
-app.set("trust proxy", 1);
+// app.set("trust proxy", 1);
 
-app.use(express.json({ limit: "4mb" }));
+app.use(express.json({ }));
 app.use(helmet());
 app.use(cors());
 
@@ -43,6 +44,7 @@ app.use("/order/", customerOrderRoutes);
 app.use("/attributes/", attributeRoutes);
 app.use("/setting/", settingRoutes);
 app.use("/cart/", cartRoutes);
+app.use("/reviews/", reviewsRoutes);
 
 app.use("/homepage/", homePageRoutes);
 

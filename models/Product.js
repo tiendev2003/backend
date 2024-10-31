@@ -78,6 +78,12 @@ const productSchema = new mongoose.Schema(
       default: "show",
       enum: ["show", "hide"],
     },
+    reviews: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Review",
+      },
+    ],
   },
   {
     timestamps: true,

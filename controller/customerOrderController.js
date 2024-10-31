@@ -2,8 +2,10 @@ require("dotenv").config();
 const stripe = require("stripe")(`${process.env.STRIPE_KEY}` || null); /// use hardcoded key if env not work
 
 const mongoose = require("mongoose");
-
+const { v4: uuidv4 } = require("uuid"); // Thư viện tạo ID duy nhất cho đơn hàng
+const crypto = require("crypto-js");
 const Order = require("../models/Order");
+const axios = require("axios");
 
 const { handleProductQuantity } = require("../lib/stock-controller/others");
 const { formatAmountForStripe } = require("../lib/stripe/stripe");
@@ -12,14 +14,16 @@ const Product = require("../models/Product");
 const addOrder = async (req, res) => {
   try {
     const productsInCart = req.body.cart;
-    console.log(productsInCart);
+    console.log(req.body);
     let totalPrice = 0;
     let totalOriginalPrice = 0;
     let totalDiscount = 0;
     let orderCart = [];
 
     for (let i = 0; i < productsInCart.length; i++) {
-      const productDetails = await Product.findById(productsInCart[i].productId);
+      const productDetails = await Product.findById(
+        productsInCart[i].product._id
+      );
       console.log(productDetails);
       const productOriginalPrice =
         productDetails.prices.originalPrice * productsInCart[i].quantity;
@@ -190,6 +194,7 @@ const getOrderCustomer = async (req, res) => {
     const pages = Number(page) || 1;
     const limits = Number(limit) || 8;
     const skip = (pages - 1) * limits;
+    console.log(req.user);
 
     const totalDoc = await Order.countDocuments({ user: req.user._id });
 
@@ -198,7 +203,7 @@ const getOrderCustomer = async (req, res) => {
       {
         $match: {
           status: "Pending",
-          user: mongoose.Types.ObjectId(req.user._id),
+          user: new mongoose.Types.ObjectId(req.user._id),
         },
       },
       {
@@ -217,7 +222,7 @@ const getOrderCustomer = async (req, res) => {
       {
         $match: {
           status: "Processing",
-          user: mongoose.Types.ObjectId(req.user._id),
+          user: new mongoose.Types.ObjectId(req.user._id),
         },
       },
       {
@@ -235,7 +240,7 @@ const getOrderCustomer = async (req, res) => {
       {
         $match: {
           status: "Delivered",
-          user: mongoose.Types.ObjectId(req.user._id),
+          user: new mongoose.Types.ObjectId(req.user._id),
         },
       },
       {
@@ -286,6 +291,103 @@ const getOrderById = async (req, res) => {
   }
 };
 
+const paymentWithMomo = async (req, res) => {
+  const { orderId, total } = req.body;
+  var partnerCode = "MOMOBKUN20180529";
+  var accessKey = "klm05TvNBzhg7h7j";
+  var secretkey = "at67qH6mk8w5Y1nAyMoYKMWACiEi2bsa";
+  var requestId = partnerCode + new Date().getTime();
+  var orderInfo = "pay with MoMo";
+  var redirectUrl = "http://localhost:3000/shop";
+  var ipnUrl =
+    "https://d9cd-116-110-113-2.ngrok-free.app/orders/callback-with-momo";
+  var amount = total.toString();
+  var requestType = "payWithMethod";
+  var extraData = "";
+  console.log("Request to MoMo: ", req.body);
+
+  var rawSignature =
+    "accessKey=" +
+    accessKey +
+    "&amount=" +
+    amount +
+    "&extraData=" +
+    extraData +
+    "&ipnUrl=" +
+    ipnUrl +
+    "&orderId=" +
+    orderId +
+    "&orderInfo=" +
+    orderInfo +
+    "&partnerCode=" +
+    partnerCode +
+    "&redirectUrl=" +
+    redirectUrl +
+    "&requestId=" +
+    requestId +
+    "&requestType=" +
+    requestType;
+
+  const signature = crypto
+    .HmacSHA256(rawSignature, secretkey)
+    .toString(crypto.enc.Hex);
+
+  const requestBody = JSON.stringify({
+    partnerCode: partnerCode,
+    accessKey: accessKey,
+    requestId: requestId,
+    amount: amount,
+    orderId: orderId,
+    orderInfo: orderInfo,
+    redirectUrl: redirectUrl,
+    ipnUrl: ipnUrl,
+    extraData: extraData,
+    requestType: requestType,
+    signature: signature,
+    lang: "en",
+  });
+  // options for axios
+  const options = {
+    method: "POST",
+    url: "https://test-payment.momo.vn/v2/gateway/api/create",
+    headers: {
+      "Content-Type": "application/json",
+      "Content-Length": Buffer.byteLength(requestBody),
+    },
+    data: requestBody,
+  };
+  console.log("Request to MoMo: ", options);
+  // Send the request and handle the response
+  try {
+    const result = await axios(options);
+    if (result.data.resultCode !== 0) {
+      return res.status(400).json({
+        message: result.data.message,
+        data: result.data,
+      });
+    }
+    return res.status(200).json({
+      message: "Payment request sent successfully.",
+      data: result.data,
+    });
+  } catch (error) {
+    return res.status(500).send({
+      message: error.message,
+    });
+  }
+};
+const callbackPaymentMomo = async (req, res) => {
+  console.log("MoMo callback: ", req.body);
+  const { orderId, resultCode } = req.body;
+  if (resultCode === 0) {
+    // Payment successful
+    const order = await Order.findById(orderId);
+    order.status = "Processing";
+    await order.save();
+  }
+  res.status(200).json({ message: "Payment callback received successfully." });
+};
+
 module.exports = {
   addOrder,
   getOrderById,
@@ -294,4 +396,6 @@ module.exports = {
   confirmOrder,
   confirmPayment,
   addPaymentDetails,
+  paymentWithMomo,
+  callbackPaymentMomo,
 };

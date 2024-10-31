@@ -15,7 +15,7 @@ const cartSchema = new mongoose.Schema(
           required: true,
         },
         variant: {
-          type: Object,
+          type: Array,
           required: true,
         },
         quantity: {
@@ -23,8 +23,13 @@ const cartSchema = new mongoose.Schema(
           required: true,
           min: 1,
         },
+        price : {
+          type: Number,
+        
+        },
       },
     ],
+  
     totalPrice: {
       type: Number,
       required: true,

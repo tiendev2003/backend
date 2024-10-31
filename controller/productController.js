@@ -2,6 +2,7 @@ const Product = require("../models/Product");
 const mongoose = require("mongoose");
 const Category = require("../models/Category");
 const Attribute = require("../models/Attribute");
+const Review = require("../models/Review");
 
 const addProduct = async (req, res) => {
   console.log("fda", req.body);
@@ -31,7 +32,7 @@ const getProductByCategory = async (req, res) => {
     // category = await Category.find({slug: req.params.category});
     // if(!category){
     // console.log(`Not found by slug. Searching by name: ${req.params.category}`)
-    category = await Category.find({ "name.en": req.params.category });
+    category = await Category.find({ name: req.params.category });
     // }
 
     // console.log(category)
@@ -230,7 +231,11 @@ const getProductById = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id)
       .populate({ path: "category", select: "_id, name" })
-      .populate({ path: "categories", select: "_id name" });
+      .populate({ path: "categories", select: "_id name" })
+      .populate({
+        path: "reviews",
+        populate: { path: "user", select: "name" },
+      });
 
     res.send(product);
   } catch (err) {
@@ -419,8 +424,71 @@ const deleteManyProducts = async (req, res) => {
   }
 };
 
+const addReview = async (req, res) => {
+  try {
+    const { productId, rating, comment } = req.body;
+
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).send({
+        message: "Product not found!",
+      });
+    }
+    const userId = req.user._id;
+    if (!userId) {
+      return res.status(401).send({
+        message: "You need to login first!",
+      });
+    }
+    const existingReview = await Review.findOne({
+      product: productId,
+      user: userId,
+    });
+    if (existingReview) {
+      return res.status(400).send({
+        message: "You already reviewed this product!",
+      });
+    }
+
+    console.log("product", product._id);
+    const review = new Review({
+      product: productId,
+      user: userId,
+      rating,
+      comment,
+    });
+    await review.save();
+    product.reviews.push(review);
+    await product.save();
+
+    res.status(201).send({
+      message: "Review added successfully!",
+      review,
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(500).send({
+      message: err.message,
+    });
+  }
+};
+
+const getProductReviews = async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.productId).populate({
+      path: "reviews",
+    });
+    res.send(product.reviews);
+  } catch (err) {
+    res.status(500).send({
+      message: err.message,
+    });
+  }
+};
 module.exports = {
   addProduct,
+  addReview,
+  getProductReviews,
   addAllProducts,
   getAllProducts,
   getShowingProducts,

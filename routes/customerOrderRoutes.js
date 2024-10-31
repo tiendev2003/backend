@@ -7,7 +7,8 @@ const {
   createPaymentIntent,
   confirmOrder,
   confirmPayment,
-  addPaymentDetails
+  addPaymentDetails,
+  paymentWithMomo
 } = require("../controller/customerOrderController");
 const { guestAuth, isAuth } = require("../config/auth");
 
@@ -22,10 +23,11 @@ router.post("/add-payment-details/:id", addPaymentDetails);
 router.post("/create-payment-intent", createPaymentIntent);
 
 //get a order by id
-router.get("/:id", getOrderById);
+router.get("/:id", isAuth,getOrderById);
+router.post("/payment-momo", paymentWithMomo)
 
 //get all order by a user
-router.get("/", getOrderCustomer);
+router.get("/",isAuth, getOrderCustomer);
 
 router.post("/confirm-order/:id", confirmOrder);
 

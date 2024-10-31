@@ -14,7 +14,10 @@ const {
   deleteProduct,
   deleteManyProducts,
   getShowingStoreProducts,
+  addReview,
+  getProductReviews,
 } = require("../controller/productController");
+const { isAuth } = require("../config/auth");
 
 //add a product
 router.post("/add", addProduct);
@@ -54,5 +57,9 @@ router.delete("/:id", deleteProduct);
 
 //delete many product
 router.patch("/delete/many", deleteManyProducts);
+
+// router.post("/reviews", isAuth, addReview);
+// router.get("/reviews", isAuth,getProductReviews);
+
 
 module.exports = router;
